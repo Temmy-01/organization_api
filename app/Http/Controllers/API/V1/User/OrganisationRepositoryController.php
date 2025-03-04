@@ -186,7 +186,9 @@ class OrganisationRepositoryController extends Controller
         }
 
         try {
-            $githubToken = env('GITHUB_TOKEN');
+            // $githubToken = env('GITHUB_TOKEN');
+            $githubToken = config('services.github.token');
+
             if (!$githubToken) {
                 return response()->json([
                     'status' => 'error',
