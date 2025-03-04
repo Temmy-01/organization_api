@@ -46,7 +46,7 @@ class RepositoryController extends Controller
      * Create a new repository.
      *
      * @OA\Post(
-     *     path="/api/v1/user/reposistory/add_repository",
+     *     path="/api/v1/user/repository/add_repository",
      *     summary="Create a new repository",
      *     tags={"Repositories"},
      *     security={{"bearerAuth": {}}},
@@ -56,9 +56,9 @@ class RepositoryController extends Controller
      *             required={"name", "description", "no_of_stars"},
      *             @OA\Property(property="name", type="string", example="New Repo"),
      *             @OA\Property(property="description", type="string", example="A description for the repository."),
-     *             @OA\Property(property="url", type="string", format="url", example="https://example.com"),
-     *             @OA\Property(property="repo_code", type="string", example="ABC123XYZ"),
-     *             @OA\Property(property="no_of_stars", type="string", example="50"),
+     *             @OA\Property(property="url", type="string", format="url", nullable=true, example="https://example.com"),
+     *             @OA\Property(property="repo_code", type="string", nullable=true, example="ABC123XYZ"),
+     *             @OA\Property(property="no_of_stars", type="integer", example=50),
      *         )
      *     ),
      *     @OA\Response(
@@ -67,7 +67,16 @@ class RepositoryController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="string", example="success"),
      *             @OA\Property(property="message", type="string", example="Repository created successfully"),
-     *             @OA\Property(property="data", type="object")
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id", type="integer", example=1),
+     *                 @OA\Property(property="name", type="string", example="New Repo"),
+     *                 @OA\Property(property="description", type="string", example="A description for the repository."),
+     *                 @OA\Property(property="url", type="string", format="url", nullable=true, example="https://example.com"),
+     *                 @OA\Property(property="repo_code", type="string", nullable=true, example="ABC123XYZ"),
+     *                 @OA\Property(property="no_of_stars", type="integer", example=50),
+     *                 @OA\Property(property="created_at", type="string", format="date-time", example="2024-03-04T12:34:56Z"),
+     *                 @OA\Property(property="updated_at", type="string", format="date-time", example="2024-03-04T12:34:56Z"),
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -76,7 +85,10 @@ class RepositoryController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="string", example="error"),
      *             @OA\Property(property="message", type="string", example="Invalid input"),
-     *             @OA\Property(property="errors", type="object")
+     *             @OA\Property(property="errors", type="object",
+     *                 @OA\Property(property="name", type="array", @OA\Items(type="string", example="The name field is required.")),
+     *                 @OA\Property(property="no_of_stars", type="array", @OA\Items(type="string", example="The no_of_stars field must be an integer.")),
+     *             )
      *         )
      *     ),
      *     @OA\Response(
@@ -85,7 +97,7 @@ class RepositoryController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="string", example="error"),
      *             @OA\Property(property="message", type="string", example="Failed to create repository"),
-     *             @OA\Property(property="error", type="string", example="Error message")
+     *             @OA\Property(property="error", type="string", example="SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'New Repo' for key 'repositories.name'")
      *         )
      *     )
      * )
@@ -93,9 +105,9 @@ class RepositoryController extends Controller
 
 
 
+
     public function createRepository(Request $request)
     {
-        // Validate input
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|unique:repositories,name',
             'description' => 'required|string',
@@ -113,7 +125,6 @@ class RepositoryController extends Controller
         }
 
         try {
-            // Generate a random repo code if not provided
             $repoCode = $request->repo_code ?? strtoupper(Str::random(10));
 
             $repository = Repository::create([
@@ -184,13 +195,11 @@ class RepositoryController extends Controller
         try {
             $query = Repository::query();
 
-            // Apply search filter if provided
             if (!empty($search)) {
                 $query->where('name', 'LIKE', "%$search%")
                     ->orWhere('description', 'LIKE', "%$search%");
             }
 
-            // Paginate results
             $repositories = $query->paginate($perPage);
 
             return response()->json([
@@ -265,7 +274,6 @@ class RepositoryController extends Controller
 
     public function updateRepository(Request $request, $id)
     {
-        // Validate input
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|unique:repositories,name,' . $id,
             'description' => 'required|string',
@@ -283,10 +291,8 @@ class RepositoryController extends Controller
         }
 
         try {
-            // Find the repository
             $repository = Repository::findOrFail($id);
 
-            // Update the repository
             $repository->update([
                 'name' => $request->name,
                 'description' => $request->description,
@@ -309,14 +315,54 @@ class RepositoryController extends Controller
         }
     }
 
-   
+
+    /**
+     * Delete a repository by ID.
+     *
+     * @OA\Delete(
+     *     path="/api/v1/user/repository/delete{repo_id}",
+     *     summary="Delete a repository",
+     *     tags={"Repositories"},
+     *     security={{"bearerAuth": {}}},
+     *     @OA\Parameter(
+     *         name="repo_id",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the repository to delete",
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Repository deleted successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="message", type="string", example="Repository and related records removed successfully")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Repository not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="Repository not found")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="An error occurred while removing repository and related records")
+     *         )
+     *     )
+     * )
+     */
 
     public function deleteRepository(Request $request, $repo_id)
     {
         DB::beginTransaction();
 
         try {
-            // Find the Base user by id
             $repository = Repository::where('id', $repo_id)->first();
             if ($repository) {
                 $repository->forceDelete();
