@@ -203,8 +203,8 @@
                 "tags": [
                     "Repositories"
                 ],
-                "summary": "Create an organization repository",
-                "description": "Fetches details from GitHub API and stores them in the database.",
+                "summary": "Create a new GitHub repository",
+                "description": "Creates a new repository on GitHub (either personal or organization) and stores the details in the database.",
                 "operationId": "createOrgRepository",
                 "requestBody": {
                     "required": true,
@@ -212,21 +212,30 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "github_repo_url"
+                                    "name",
+                                    "visibility"
                                 ],
                                 "properties": {
-                                    "github_repo_url": {
+                                    "name": {
                                         "type": "string",
-                                        "format": "url",
-                                        "example": "https://github.com/user/repo"
+                                        "example": "my-new-repo"
                                     },
                                     "description": {
                                         "type": "string",
-                                        "example": "A sample repo"
+                                        "example": "A sample repository"
                                     },
                                     "visibility": {
                                         "type": "string",
+                                        "enum": [
+                                            "public",
+                                            "private"
+                                        ],
                                         "example": "public"
+                                    },
+                                    "org": {
+                                        "type": "string",
+                                        "example": "my-organization",
+                                        "nullable": true
                                     },
                                     "language": {
                                         "type": "string",
@@ -309,6 +318,66 @@
                                         },
                                         "errors": {
                                             "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthorized"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Insufficient permissions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Permission denied"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found - Organization not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Organization not found"
                                         }
                                     },
                                     "type": "object"

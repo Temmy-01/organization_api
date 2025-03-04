@@ -24,8 +24,8 @@ class OrganisationRepositoryController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/user/org_repository/add_repository",
-     *     summary="Create an organization repository",
-     *     description="Fetches details from GitHub API and stores them in the database.",
+     *     summary="Create a new GitHub repository",
+     *     description="Creates a new repository on GitHub (either personal or organization) and stores the details in the database.",
      *     operationId="createOrgRepository",
      *     tags={"Repositories"},
      *     security={{"sanctum": {}}},
@@ -33,10 +33,11 @@ class OrganisationRepositoryController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"github_repo_url"},
-     *             @OA\Property(property="github_repo_url", type="string", format="url", example="https://github.com/user/repo"),
-     *             @OA\Property(property="description", type="string", example="A sample repo"),
-     *             @OA\Property(property="visibility", type="string", example="public"),
+     *             required={"name", "visibility"},
+     *             @OA\Property(property="name", type="string", example="my-new-repo"),
+     *             @OA\Property(property="description", type="string", example="A sample repository"),
+     *             @OA\Property(property="visibility", type="string", enum={"public", "private"}, example="public"),
+     *             @OA\Property(property="org", type="string", nullable=true, example="my-organization"),
      *             @OA\Property(property="language", type="string", example="PHP"),
      *             @OA\Property(property="license", type="string", example="MIT"),
      *             @OA\Property(property="forks_count", type="integer", example=10),
@@ -68,6 +69,33 @@ class OrganisationRepositoryController extends Controller
      *     ),
      * 
      *     @OA\Response(
+     *         response=401,
+     *         description="Unauthorized - Invalid or missing token",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="Unauthorized")
+     *         )
+     *     ),
+     * 
+     *     @OA\Response(
+     *         response=403,
+     *         description="Forbidden - Insufficient permissions",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="Permission denied")
+     *         )
+     *     ),
+     * 
+     *     @OA\Response(
+     *         response=404,
+     *         description="Not Found - Organization not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="Organization not found")
+     *         )
+     *     ),
+     * 
+     *     @OA\Response(
      *         response=500,
      *         description="Internal Server Error",
      *         @OA\JsonContent(
@@ -79,10 +107,74 @@ class OrganisationRepositoryController extends Controller
      * )
      */
 
+
+    // public function createOrgRepository(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'github_repo_url' => 'required|url',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'message' => 'Invalid input',
+    //             'errors' => $validator->errors()
+    //         ], 400);
+    //     }
+
+    //     try {
+    //         // Extract repo name from URL
+    //         $repoPath = str_replace("https://github.com/", "", $request->github_repo_url);
+
+    //         // Make request to GitHub API
+    //         $response = Http::withToken(env('GITHUB_TOKEN'))
+    //             ->get("https://api.github.com/repos/{$repoPath}");
+
+    //         if ($response->failed()) {
+    //             return response()->json([
+    //                 'status' => 'error',
+    //                 'message' => 'GitHub repository not found'
+    //             ], 404);
+    //         }
+
+    //         $data = $response->json();
+    //         $topics = !empty($data['topics']) ? $data['topics'] : ($request->topics ?? []);
+    //         // Save to database
+    // $repository = OrganisationRepository::create([
+    //     'name' => $data['name'],
+    //     'description' => $data['description'] ?? $request->description,
+    //     'url' => $data['html_url'] ?? $request->github_repo_url,
+    //     'visibility' => $data['visibility'] ?? $request->visibility,
+    //     'language' => $data['language'] ?? $request->language,
+    //     'license' => $data['license']['name'] ?? $request->license,
+    //     'forks_count' => ($data['forks_count'] == 0) ? ($request->forks_count ?? 0) : $data['forks_count'],
+    //     'open_issues_count' => ($data['open_issues_count'] == 0) ? ($request->open_issues_count ?? 0) : $data['open_issues_count'],
+    //     'watchers_count' => ($data['watchers_count'] == 0) ? ($request->watchers_count ?? 0) : $data['watchers_count'],
+    //     'default_branch' => $data['default_branch'] ?? $request->default_branch,
+    //     // 'topics' => json_encode($data['topics'] ?? $request->topics),
+    //     'topics' => json_encode($topics),
+    // ]);
+
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'message' => 'Repository created successfully',
+    //             'data' => $repository
+    //         ], 201);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'message' => 'Failed to create repository',
+    //             'error' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
     public function createOrgRepository(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'github_repo_url' => 'required|url',
+            'name' => 'required|string',
+            'description' => 'nullable|string',
+            'visibility' => 'required',
         ]);
 
         if ($validator->fails()) {
@@ -94,22 +186,36 @@ class OrganisationRepositoryController extends Controller
         }
 
         try {
-            // Extract repo name from URL
-            $repoPath = str_replace("https://github.com/", "", $request->github_repo_url);
+            $githubToken = env('GITHUB_TOKEN');
+            if (!$githubToken) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'GitHub token not found in .env'
+                ], 500);
+            }
+
+            // Determine API URL (for personal or organization repository)
+            $url = $request->org
+                ? "https://api.github.com/orgs/{$request->org}/repos"
+                : "https://api.github.com/user/repos";
 
             // Make request to GitHub API
-            $response = Http::withToken(env('GITHUB_TOKEN'))
-                ->get("https://api.github.com/repos/{$repoPath}");
+            $response = Http::withToken($githubToken)->post($url, [
+                'name' => $request->name,
+                'description' => $request->description,
+                'visibility' => $request->visibility, // true for private repo, false for public
+            ]);
 
             if ($response->failed()) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'GitHub repository not found'
-                ], 404);
+                    'message' => 'GitHub repository creation failed',
+                    'error' => $response->json()
+                ], $response->status());
             }
 
             $data = $response->json();
-            $topics = !empty($data['topics']) ? $data['topics'] : ($request->topics ?? []);
+
             // Save to database
             $repository = OrganisationRepository::create([
                 'name' => $data['name'],
@@ -122,8 +228,7 @@ class OrganisationRepositoryController extends Controller
                 'open_issues_count' => ($data['open_issues_count'] == 0) ? ($request->open_issues_count ?? 0) : $data['open_issues_count'],
                 'watchers_count' => ($data['watchers_count'] == 0) ? ($request->watchers_count ?? 0) : $data['watchers_count'],
                 'default_branch' => $data['default_branch'] ?? $request->default_branch,
-                // 'topics' => json_encode($data['topics'] ?? $request->topics),
-                'topics' => json_encode($topics),
+
             ]);
 
             return response()->json([
@@ -139,73 +244,6 @@ class OrganisationRepositoryController extends Controller
             ], 500);
         }
     }
-
-
-    // public function createOrgRepository(Request $request)
-    // {
-    //     // Validate user input
-    //     $validator = Validator::make($request->all(), [
-    //         'name' => 'required|string',
-    //         'description' => 'nullable|string',
-    //         'visibility' => 'required|in:public,private',
-    //         // 'topics' => 'nullable|array'
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['error' => $validator->errors()], 400);
-    //     }
-
-    //     try {
-    //         // GitHub API request to create a repository in an organization
-    //         $githubResponse = Http::withToken(env('GITHUB_TOKEN'))->post(
-    //             "https://api.github.com/orgs/{$request->name}/repos", // ✅ Correct URL
-    //             [
-    //                 'name' => $request->name,
-    //                 'description' => $request->description,
-    //                 'private' => $request->visibility === 'private', // ✅ Correct visibility format
-    //                 'topics' => $request->topics ?? [],
-    //             ]
-    //         );
-
-    //         // Check for GitHub API errors
-    //         if ($githubResponse->failed()) {
-    //             return response()->json([
-    //                 'error' => 'GitHub repository creation failed',
-    //                 'details' => $githubResponse->json()
-    //             ], 400);
-    //         }
-
-    //         // Parse GitHub API response
-    //         $githubData = $githubResponse->json();
-
-    //         // Save repository details in Laravel database
-    //         $repository = Repository::create([
-    //             'name' => $githubData['name'],
-    //             'description' => $githubData['description'] ?? '',
-    //             'url' => $githubData['html_url'],
-    //             'visibility' => $githubData['private'] ? 'private' : 'public',
-    //             'language' => $githubData['language'] ?? 'Unknown',
-    //             'license' => $githubData['license']['name'] ?? null,
-    //             'forks_count' => $githubData['forks_count'],
-    //             'open_issues_count' => $githubData['open_issues_count'],
-    //             'watchers_count' => $githubData['watchers_count'],
-    //             'default_branch' => $githubData['default_branch'],
-    //             'topics' => json_encode($githubData['topics']),
-    //         ]);
-
-    //         return response()->json([
-    //             'status' => 'success',
-    //             'message' => 'Repository created successfully',
-    //             'data' => $repository
-    //         ], 201);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'Failed to create repository',
-    //             'error' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
 
 
     /**
