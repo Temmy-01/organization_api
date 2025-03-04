@@ -7,6 +7,7 @@ use App\Http\Controllers\API\V1\User\Auth\LoginController;
 use App\Http\Controllers\API\V1\User\Auth\RegisterController;
 use App\Http\Controllers\API\V1\User\Auth\ResetPasswordController;
 use App\Http\Controllers\API\V1\User\Auth\VerificationController;
+use App\Http\Controllers\API\V1\User\OrganisationRepositoryController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -23,13 +24,7 @@ Route::prefix('auth')->group(function () {
         ->name('user.password.sendResetLink');
     Route::post('/password/reset', [ResetPasswordController::class, 'reset'])->name('user.password.update');
 });
-Route::prefix('repository')->group(function () {
-    Route::post('add_repository', [RepositoryController::class, 'createRepository'])->name('reposistory.add_repository');
-    Route::get('/fetch', [RepositoryController::class, 'fetchRepositories'])->name('reposistory.fetch');
-    Route::put('/update/{id}', [RepositoryController::class, 'updateRepository'])->name('reposistory.update');
-    Route::delete('/delete/{id}', [RepositoryController::class, 'deleteRepository'])->name('reposistory.delete');
-    
-});
+
 
 Route::group(['middleware' => ['auth:user', 'log_activity']], function () {
     Route::prefix('auth')->group(function () {
@@ -50,12 +45,19 @@ Route::group(['middleware' => ['auth:user', 'log_activity']], function () {
         Route::put('{role}/permissions', [RolesAndPermissionsController::class, 'updateRolePermissions'])->name('updateRolePermissions');
     });
 
+    Route::prefix('repository')->group(function () {
+        Route::post('add_repository', [RepositoryController::class, 'createRepository'])->name('reposistory.add_repository');
+        Route::get('/fetch', [RepositoryController::class, 'fetchRepositories'])->name('reposistory.fetch');
+        Route::put('/update/{id}', [RepositoryController::class, 'updateRepository'])->name('reposistory.update');
+        Route::delete('/delete/{id}', [RepositoryController::class, 'deleteRepository'])->name('reposistory.delete');
+    });
 
-
-    // Route::prefix('repository')->group(function () {
-    //     Route::post('add_repository', [RepositoryController::class, 'createRepository'])->name('reposistory.add_repository');
-    //     Route::get('/fetch', [RepositoryController::class, 'fetchRepositories'])->name('reposistory.fetch');
-    // });
+    Route::prefix('org_repository')->group(function () {
+        Route::post('add_repository', [OrganisationRepositoryController::class, 'createOrgRepository'])->name('org_repository.add_repository');
+        Route::get('/fetch', [OrganisationRepositoryController::class, 'fetchOrganisationRepo'])->name('org_repository.fetch');
+        Route::put('/update/{id}', [OrganisationRepositoryController::class, 'updateOrgRepository'])->name('org_repository.update');
+        Route::delete('/delete/{id}', [OrganisationRepositoryController::class, 'deleteRepository'])->name('org_repository.delete');
+    });
     
     Route::get('/fetch-user', [RegisterController::class, 'getUser']);
     Route::get('/fetch-analytic', [RegisterController::class, 'getAnalytic']);

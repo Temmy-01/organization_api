@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Hash;
 use MarcinOrlowski\ResponseBuilder\ResponseBuilder;
 use Spatie\QueryBuilder\QueryBuilder;
 use Illuminate\Http\Response;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Imports\UsersImport;
 use App\Models\Repository;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -49,7 +47,7 @@ class RepositoryController extends Controller
      *     path="/api/v1/user/repository/add_repository",
      *     summary="Create a new repository",
      *     tags={"Repositories"},
-     *     security={{"bearerAuth": {}}},
+     *     security={{"sanctum": {}}},
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
@@ -154,6 +152,7 @@ class RepositoryController extends Controller
      *      path="/api/v1/user/repository/fetch",
      *      operationId="fetchRepositories",
      *      tags={"Repositories"},
+     *      security={{"sanctum": {}}},
      *      summary="Fetch all repositories",
      *      description="Retrieve a list of all repositories stored in the database.",
      *      @OA\Response(
@@ -189,7 +188,7 @@ class RepositoryController extends Controller
    
     public function fetchRepositories(Request $request)
     {
-        $perPage = $request->per_page ?? 2;
+        $perPage = $request->per_page ?? 10;
         $search = $request->filter;
 
         try {
@@ -223,7 +222,7 @@ class RepositoryController extends Controller
      *     path="/api/v1/user/reposistory/update/{id}",
      *     summary="Update a repository",
      *     tags={"Repositories"},
-     *     security={{"bearerAuth": {}}},
+     *     security={{"sanctum": {}}},
      *     @OA\Parameter(
      *         name="id",
      *         in="path",
@@ -323,7 +322,7 @@ class RepositoryController extends Controller
      *     path="/api/v1/user/repository/delete{repo_id}",
      *     summary="Delete a repository",
      *     tags={"Repositories"},
-     *     security={{"bearerAuth": {}}},
+     *     security={{"sanctum": {}}},
      *     @OA\Parameter(
      *         name="repo_id",
      *         in="path",
