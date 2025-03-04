@@ -41,48 +41,7 @@ class LoginController extends Controller
      */
 
 
-    /**
-     * @OA\Post(
-     *      path="/api/v1/user/auth/login",
-     *      operationId="userLogin",
-     *      tags={"Authentication"},
-     *      summary="User login",
-     *      description="Authenticate user and return access token.",
-     *      @OA\RequestBody(
-     *          required=true,
-     *          @OA\JsonContent(
-     *              required={"email", "password"},
-     *              @OA\Property(property="email", type="string", format="email", example="admin@boilerplate.com", description="User's email address"),
-     *              @OA\Property(property="password", type="string", format="password", example="password", description="User's password"),
-     *              @OA\Property(property="remember", type="boolean", example=false, description="Optional remember me flag")
-     *          )
-     *      ),
-     *      @OA\Response(
-     *          response=200,
-     *          description="Login successful",
-     *          @OA\JsonContent(
-     *              @OA\Property(property="status", type="string", example="success"),
-     *              @OA\Property(property="message", type="string", example="User login was successful."),
-     *              @OA\Property(property="data", type="object",
-     *                  @OA\Property(property="user", type="object",
-     *                      @OA\Property(property="id", type="integer", example=1),
-     *                      @OA\Property(property="name", type="string", example="John Doe"),
-     *                      @OA\Property(property="email", type="string", example="user@example.com")
-     *                  ),
-     *                  @OA\Property(property="token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1...")
-     *              )
-     *          )
-     *      ),
-     *      @OA\Response(
-     *          response=401,
-     *          description="Unauthorized - Invalid login details",
-     *          @OA\JsonContent(
-     *              @OA\Property(property="status", type="string", example="error"),
-     *              @OA\Property(property="message", type="string", example="Invalid login details")
-     *          )
-     *      )
-     * )
-     */
+    
     public function login(LoginRequest $request)
     {
         if (!Auth::attempt(['email' => $request->email, 'password' => $request->password], $request->get('remember'))) {
